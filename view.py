@@ -139,10 +139,11 @@ class EncrypterDecrypterGUI:
                 self.encrypt_decrypt.delFile()
                 break
             if self.encrypt_decrypt.general_error:
-                messagebox.showerror('Message From File Encrypter Decrypter', 'Operation Aborted due to some critical failure')
+                messagebox.showerror('Message From File Encrypter Decrypter', self.encrypt_decrypt.error_msg)
                 self.ende_btn.state(['!disabled'])
                 self.entry_var.set('')
                 self.passw_var.set('')
+                self.encrypt_decrypt.delFile()
                 break
 
     # Constraints required for the safe operation

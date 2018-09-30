@@ -2,6 +2,7 @@
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import unpad
 import threading
 import os
 import bcrypt
@@ -15,6 +16,8 @@ class EncrypterDecrypter:
         self.percent_complete = 0
         self.op_running = True
         self.pass_mismatch = False
+        self.block_size = 16
+        self.error_msg = ''
         self.updateKeyFileLoc(self.file_loc, k)
 
     # Function to update the file location and key
@@ -58,7 +61,6 @@ class EncrypterDecrypter:
         try:
             with open(self.file_loc, 'rb') as ifile:
                 with open(self._createEncryptFileExtn(), 'ab') as ofile:
-                    block_size = 128
                     read_length = 5242880
                     total_file_size = os.path.getsize(self.file_loc)
                     size_processed = 0
@@ -68,44 +70,57 @@ class EncrypterDecrypter:
                     self.op_running = True
                     while c != b'' and (not self.stop_all_thread):
                         size_processed += len(c)
-                        c = pad(c, block_size)
-                        ofile.write(self.cipher.encrypt(c))
+                        if len(c) % self.block_size == 0:
+                            ofile.write(self.cipher.encrypt(c))
+                        else:
+                            print('padding done')
+                            ofile.write(self.cipher.encrypt(pad(c, self.block_size)))
+
                         self.percent_complete = (size_processed/total_file_size) * 100
                         c = ifile.read(read_length)
                     self.op_running = False
-        except IOError:
+        except IOError as io:
             self.general_error = True
-        except:
+            self.error_msg = io
+        except Exception as ex:
             self.general_error = True
+            self.error_msg = ex
 
     # Thread to decrypt the file
     def decrypt(self):
         try:
             with open(self.file_loc, 'rb') as ifile:
                 with open(self._createDecryptFileExt(), 'ab') as ofile:
-                    block_size = 128
                     read_length = 5242880
                     total_file_size = os.path.getsize(self.file_loc)
                     size_processed = 0
                     hash_pw = ifile.read(60)
+                    size_processed += len(hash_pw)
                     if bcrypt.checkpw(bytes(self.key_and_iv[0]), hash_pw):
                         self.pass_mismatch = False
                         c = ifile.read(read_length)
                         self.op_running = True
                         while c != b'' and (not self.stop_all_thread):
                             size_processed += len(c)
-                            c = pad(c, block_size)
-                            ofile.write(self.cipher.decrypt(c))
+                            if len(c) % read_length == 0:
+                                ofile.write(self.cipher.decrypt(c))
+                            else:
+                                try:
+                                    ofile.write(unpad(self.cipher.decrypt(c), self.block_size))
+                                except:
+                                    ofile.write(self.cipher.decrypt(c))
                             self.percent_complete = (size_processed/total_file_size) * 100
                             c = ifile.read(read_length)
                         self.op_running = False
                     else:
                         self.pass_mismatch = True
                         self.op_running = False
-        except IOError:
+        except IOError as io:
             self.general_error = True
-        except:
+            self.error_msg = io
+        except Exception as ex:
             self.general_error = True
+            self.error_msg = ex
 
     # Method to start the thread for encryption
     def startEncryption(self):
