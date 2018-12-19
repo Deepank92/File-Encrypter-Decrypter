@@ -24,7 +24,7 @@ class EncrypterDecrypterGUI:
         self.createWindow()
         self.createUI()
         self.root.protocol('WM_DELETE_WINDOW', self.on_closing_window)
-        self.root.iconbitmap('logo.ico')
+        self.root.iconbitmap('D:\Projects\FileEncrypterDecrypter\logo.ico')
         self.root.mainloop()
 
     # This class method will create the window
